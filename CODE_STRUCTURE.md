@@ -2,6 +2,7 @@
 
 ## Directory Structure with Purpose
 
+
 ```
 portfolio-website/
 ├── 📁 client/                      # Frontend React Application
