@@ -6,6 +6,10 @@ When you encounter problems with your portfolio website, use these structured pr
 
 ## General Issue Template
 
+
+
+
+
 ```
 **Issue Type**: [Frontend/Backend/Build/Deployment/Performance]
 **Priority**: [High/Medium/Low]
