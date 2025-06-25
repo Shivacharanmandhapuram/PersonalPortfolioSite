@@ -49,7 +49,19 @@ export default function Playbook() {
     queryKey: ["/api/playbook-feed"],
     queryFn: async ({ pageParam = 1 }) => {
       const response = await fetch(`/api/playbook-feed?page=${pageParam}&limit=6`);
-      return response.json();
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      
+      // Handle server-side errors gracefully
+      if (data.error) {
+        throw new Error(data.message || data.error);
+      }
+      
+      return data;
     },
     getNextPageParam: (lastPage) => {
       return lastPage.hasMore ? lastPage.currentPage + 1 : undefined;
@@ -82,54 +94,6 @@ export default function Playbook() {
   // Flatten all pages into a single array of posts
   const allPosts = data?.pages?.flatMap(page => page.posts) || [];
 
-  // Fallback posts if RSS feed fails
-  const fallbackPosts = [
-    {
-      title: "The Art of Product-Market Fit",
-      contentSnippet:
-        "Finding product-market fit isn't just about building features—it's about understanding the emotional connection between your solution and your users' deepest needs. Here's how we discovered it through community feedback...",
-      link: "#",
-      pubDate: "2024-12-15",
-    },
-    {
-      title: "Building Communities That Scale",
-      contentSnippet:
-        "Growing Noobslearning to 5,000+ members taught us that community isn't just about numbers—it's about creating genuine value and fostering meaningful connections. Here are the key principles...",
-      link: "#",
-      pubDate: "2024-12-10",
-    },
-    {
-      title: "Navigating Y Combinator: Lessons Learned",
-      contentSnippet:
-        "Y Combinator taught us that successful startups aren't just about great ideas—they're about execution, timing, and relentless focus on customer needs. Here's what we learned...",
-      link: "#",
-      pubDate: "2024-12-05",
-    },
-    {
-      title: "The Psychology of User Engagement",
-      contentSnippet:
-        "Understanding why users engage with your product goes beyond features and functionality. It's about creating experiences that resonate on a deeper level...",
-      link: "#",
-      pubDate: "2024-11-28",
-    },
-    {
-      title: "Remote-First Culture Design",
-      contentSnippet:
-        "Building a strong remote culture requires intentional design and clear communication protocols. Here's how we scaled our team across multiple time zones...",
-      link: "#",
-      pubDate: "2024-11-20",
-    },
-    {
-      title: "Technical Storytelling for Founders",
-      contentSnippet:
-        "Complex technology needs simple stories. Whether pitching to investors or explaining to users, storytelling determines success. Here's our framework...",
-      link: "#",
-      pubDate: "2024-11-15",
-    },
-  ];
-
-  const postsToDisplay = allPosts.length > 0 ? allPosts : fallbackPosts;
-
   /**
    * Manual refresh function for fetching latest posts
    * Invalidates cache and refetches data from RSS feed
@@ -156,37 +120,65 @@ export default function Playbook() {
           </button>
         </div>
 
-        {/* Loading State */}
+        {/* Loading State - Show loading skeleton */}
         {isLoading && (
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center px-4 py-2 text-gray-600 bg-gray-100 rounded-full">
-              Loading latest posts...
-            </div>
+          <div className="space-y-8">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="animate-pulse">
+                <div className="h-6 bg-gray-200 rounded mb-3 w-3/4"></div>
+                <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded mb-2 w-5/6"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+              </div>
+            ))}
           </div>
         )}
 
         {/* Error State */}
-        {error && (
-          <div className="text-center mb-12">
-            <div className="inline-flex items-center px-4 py-2 text-gray-600 bg-gray-100 rounded-full">
-              Showing recent posts
+        {error && !isLoading && (
+          <div className="text-center py-12">
+            <div className="mb-4 text-gray-600">
+              Unable to load blog posts at the moment.
             </div>
+            <button
+              onClick={handleRefresh}
+              className="px-4 py-2 bg-gray-800 text-white rounded-full hover:bg-gray-700 transition-colors"
+            >
+              Try Again
+            </button>
           </div>
         )}
 
-        {/* Posts - Single column layout with proper spacing */}
-        <div className="divide-y-0">
-          {postsToDisplay.map((post, index) => (
-            <PlaybookPostCard
-              key={`${post.link}-${index}`}
-              title={post.title}
-              contentSnippet={post.contentSnippet}
-              link={post.link}
-              pubDate={post.pubDate}
-              index={index}
-            />
-          ))}
-        </div>
+        {/* Posts - Only show when we have data and not loading */}
+        {!isLoading && !error && allPosts.length > 0 && (
+          <div className="divide-y-0">
+            {allPosts.map((post, index) => (
+              <PlaybookPostCard
+                key={`${post.link}-${index}`}
+                title={post.title}
+                contentSnippet={post.contentSnippet}
+                link={post.link}
+                pubDate={post.pubDate}
+                index={index}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* No posts available */}
+        {!isLoading && !error && allPosts.length === 0 && (
+          <div className="text-center py-12">
+            <div className="text-gray-600 mb-4">
+              No blog posts available at the moment.
+            </div>
+            <button
+              onClick={handleRefresh}
+              className="px-4 py-2 bg-gray-800 text-white rounded-full hover:bg-gray-700 transition-colors"
+            >
+              Refresh
+            </button>
+          </div>
+        )}
 
         {/* Loading indicator for infinite scroll */}
         {isFetchingNextPage && (
