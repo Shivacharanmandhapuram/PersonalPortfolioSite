@@ -3,6 +3,16 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage"; // This import is present but 'storage' is not used in the provided code.
 import Parser from "rss-parser";
 
+// In-memory cache for RSS feed data
+interface CacheEntry {
+  data: any;
+  timestamp: number;
+  expiresAt: number;
+}
+
+const rssCache = new Map<string, CacheEntry>();
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes in milliseconds
+
 /**
  * Register all API routes for the portfolio website
  * @param app - Express application instance
@@ -37,7 +47,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   /**
-   * Main RSS feed endpoint for Playbook page with pagination support
+   * Main RSS feed endpoint for Playbook page with pagination support and caching
    * @route GET /api/playbook-feed
    * @query page - Page number (default: 1)
    * @query limit - Posts per page (default: 6)
@@ -50,43 +60,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const limit = parseInt(req.query.limit as string) || 6;
       const offset = (page - 1) * limit;
 
-      const parser = new Parser();
-      // Add cache-busting timestamp to bypass RSS cache
-      const feedUrl = `https://shivacharanmandhapuram.substack.com/feed?t=${Date.now()}`;
-      const feed = await parser.parseURL(feedUrl);
+      const feedUrl = "https://shivacharanmandhapuram.substack.com/feed";
+      const cacheKey = `playbook-feed-${feedUrl}`;
+      const now = Date.now();
 
-      const allPosts =
-        feed.items?.map((item) => ({
-          title: item.title || "",
-          contentSnippet:
-            item.contentSnippet ||
-            item.content?.substring(0, 200) + "..." ||
-            "",
-          pubDate: item.pubDate || "",
-          link: item.link || "",
-        })) || [];
+      // Check cache first
+      const cachedEntry = rssCache.get(cacheKey);
+      let allPosts: any[] = [];
 
-      // Simulate pagination by slicing the posts
+      if (cachedEntry && now < cachedEntry.expiresAt) {
+        // Use cached data
+        console.log("Using cached RSS feed data");
+        allPosts = cachedEntry.data;
+      } else {
+        // Fetch fresh data with comprehensive error handling
+        console.log("Fetching fresh RSS feed data");
+        
+        const parser = new Parser({
+          timeout: 15000, // 15 second timeout
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; RSS-Parser)',
+            'Accept': 'application/rss+xml, application/xml, text/xml'
+          }
+        });
+
+        try {
+          const feed = await parser.parseURL(feedUrl);
+          
+          if (!feed || !feed.items) {
+            throw new Error("Invalid RSS feed structure");
+          }
+
+          allPosts = feed.items.map((item) => ({
+            title: item.title || "Untitled Post",
+            contentSnippet: 
+              item.contentSnippet ||
+              (item.content ? item.content.substring(0, 200) + "..." : "No content available"),
+            pubDate: item.pubDate || new Date().toISOString(),
+            link: item.link || "#",
+          }));
+
+          // Cache the successful result
+          rssCache.set(cacheKey, {
+            data: allPosts,
+            timestamp: now,
+            expiresAt: now + CACHE_DURATION
+          });
+
+          console.log(`Cached ${allPosts.length} posts for 10 minutes`);
+
+        } catch (fetchError) {
+          console.error("RSS fetch error:", fetchError);
+          
+          // Try to use stale cache if available
+          if (cachedEntry) {
+            console.log("Using stale cached data due to fetch error");
+            allPosts = cachedEntry.data;
+          } else {
+            // No cache available, return empty array
+            console.log("No cache available, returning empty response");
+            allPosts = [];
+          }
+        }
+      }
+
+      // Implement pagination
       const paginatedPosts = allPosts.slice(offset, offset + limit);
       const hasMore = offset + limit < allPosts.length;
 
-      // Set cache headers to reduce caching
+      // Set appropriate cache headers
       res.set({
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-        Pragma: "no-cache",
-        Expires: "0",
+        "Cache-Control": "public, max-age=300", // 5 minutes browser cache
+        "Content-Type": "application/json",
       });
 
-      res.json({
+      const response = {
         posts: paginatedPosts,
         hasMore,
         currentPage: page,
         totalPosts: allPosts.length,
-      });
+        cached: cachedEntry && now < cachedEntry.expiresAt,
+        lastFetch: cachedEntry?.timestamp || now
+      };
+
+      res.status(200).json(response);
+
     } catch (error) {
-      console.error("Playbook RSS feed error:", error);
-      // Fallback to show error but still return empty array to prevent UI crash
-      res.status(200).json({
+      console.error("Critical error in playbook-feed endpoint:", error);
+      
+      // Return proper error response for Vercel
+      res.status(500).json({
+        error: "RSS feed temporarily unavailable",
+        message: "Please try again in a few moments",
         posts: [],
         hasMore: false,
         currentPage: 1,

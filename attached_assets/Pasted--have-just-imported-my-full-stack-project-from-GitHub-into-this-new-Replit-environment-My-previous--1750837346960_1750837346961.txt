@@ -1,0 +1,47 @@
+ have just imported my full-stack project from GitHub into this new Replit environment. My previous environment was becoming difficult to debug. My goal is to fix two final, critical issues with my application so it can be successfully deployed and used on Vercel.
+
+1. Project Architecture:
+
+Frontend: A React application built with Vite, located in the client/ directory.
+
+Backend: An Express.js API written in TypeScript, located in the server/ directory.
+
+Core Functionality: The frontend has a "Playbook" section that makes an API call to my backend at the /api/playbook-feed endpoint. The backend then uses the rss-parser library to fetch my blog posts from an external Substack RSS feed.
+
+Deployment Target: Vercel.
+
+2. The Primary Issue: Vercel Runtime Error
+
+After a very long debugging process, the application now successfully builds and deploys on Vercel. The old build errors are gone. However, the application is still not working correctly at runtime.
+
+Symptom: When I navigate to the "Playbook" section on the live Vercel site, it fails to display my blog posts.
+
+The Specific Error: The browser's Developer Tools (Network tab) show that the API call to /api/playbook-feed is failing with a:
+
+[Please insert the exact error status you are seeing here. For example: 500 Internal Server Error, 404 Not Found, 502 Bad Gateway, or Function Invocation Timeout]
+
+Hypothesis: This is a runtime error within the Vercel serverless function. It could be caused by the function crashing due to an unhandled error, a missing environment variable, or the external RSS feed being slow and causing a timeout.
+
+3. The Secondary Issue: "Playbook" Performance and UX
+
+Even when the application works locally, I've noticed two problems with the "Playbook" section:
+
+Initial Default Content: When the page loads, it sometimes briefly shows some "default blogs" or placeholder content before my actual content appears.
+
+Loading Delay: It takes 2-3 seconds for my real blog posts to be fetched and reflected on the screen.
+
+4. Your Task: Please Fix These Issues
+
+Based on this context, please perform the following actions:
+
+Diagnose and Fix the Vercel Runtime Error: This is the highest priority. Review the backend Express server code (server/index.ts or api/index.ts). Add robust try...catch blocks around the rss-parser logic to handle any potential fetching or parsing errors gracefully. Ensure the function returns a proper error response instead of crashing.
+
+Implement Backend Caching: To solve the 2-3 second delay, implement a simple in-memory caching mechanism in the /api/playbook-feed endpoint. The server should cache the RSS feed results for a set period (e.g., 10 minutes) to avoid re-fetching on every single page load. This will dramatically improve performance.
+
+Improve Frontend State Management: Review the React component responsible for displaying the "Playbook" page.
+
+Eliminate the "default blogs" from the initial state. The blog list should start as an empty array.
+
+Implement a clear loading state. While the data is being fetched, the component should display a loading indicator (like a spinner or skeleton screen) instead of incorrect content.
+
+Provide a Summary: After you have implemented these changes, please provide a summary of what you did to fix the Vercel runtime error, the performance delay, and the frontend user experience.

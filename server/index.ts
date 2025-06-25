@@ -102,3 +102,6 @@ if (process.env.NODE_ENV === "development" || !process.env.VERCEL) {
 // For Vercel production deployment, export the app directly
 // Vercel will handle listening on a port internally
 export default app; // <-- REQUIRED for Vercel serverless functions
+
+// Also export as named export for compatibility
+export { app };
