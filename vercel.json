@@ -1,10 +1,13 @@
 {
-  "buildCommand": "node build.js",
+  "buildCommand": "vite build --config vite.config.production.ts --outDir dist/public",
   "outputDirectory": "dist/public",
   "installCommand": "npm install",
   "functions": {
-    "api/*.js": {
-      "runtime": "@vercel/node"
+    "api/playbook-feed.js": {
+      "runtime": "nodejs18.x"
+    },
+    "api/substack-feed.js": {
+      "runtime": "nodejs18.x"
     }
   },
   "rewrites": [

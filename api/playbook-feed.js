@@ -1,11 +1,11 @@
 // Vercel serverless function for playbook RSS feed
-import Parser from 'rss-parser';
+const Parser = require('rss-parser');
 
 // In-memory cache for RSS feed data
 const rssCache = new Map();
 const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');

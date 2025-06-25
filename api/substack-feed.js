@@ -1,7 +1,7 @@
 // Legacy RSS feed endpoint for compatibility
-import Parser from 'rss-parser';
+const Parser = require('rss-parser');
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   // Set CORS headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
